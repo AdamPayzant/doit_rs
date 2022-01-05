@@ -1,0 +1,15 @@
+[package]
+name = "doit_rs"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+toml = "0.5.8"
+clap = "2.34.0"
+whoami = "1.0.1"
+rpassword = "5.0.1"
+libc = "0.2.112"
+num-traits = "0.2.14"
+enum-primitive-derive = "0.2.2"
