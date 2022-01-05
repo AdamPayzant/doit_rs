@@ -4,6 +4,9 @@ A simplified privledge escalation tool.
 Attempting to combine the memory safety guarantees of Rust with a small, auditable
 codebase.
 
+I was really unhappy with the existing PAM options for rust, so this project has currently
+devolved into me writing a safe wrapper for PAM.
+
 ## Important Points for Consideration
 
 * Just because this port attempts to make use of memory safety and a smaller codebase
