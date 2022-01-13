@@ -6,7 +6,7 @@
  */
 
 use num_traits::FromPrimitive;
-use std::{ffi::CString, ptr, mem::transmute};
+use std::{ffi::{CString, CStr}, ptr, mem::transmute};
 use crate::pam::pam_bindings::*;
 use enum_primitive_derive::Primitive;
 
@@ -43,6 +43,24 @@ pub enum PamReturn {
     BadItem = PAM_BAD_ITEM,
 }
 
+#[repr(u32)]
+#[derive(Primitive)]
+pub enum PamItemType {
+    Service = PAM_SERVICE,
+    User = PAM_USER,
+    UserPrompt = PAM_USER_PROMPT,
+    TTY = PAM_TTY,
+    RUser = PAM_RUSER,
+    RHost = PAM_RHOST,
+    Authtok = PAM_AUTHTOK,
+    OldAuthtok = PAM_OLDAUTHTOK,
+    Conv = PAM_CONV,
+    FailDelay = PAM_FAIL_DELAY,
+    XDisplay = PAM_XDISPLAY,
+    XAuthData = PAM_XAUTHDATA,
+    AuthtokType = PAM_AUTHTOK_TYPE,
+}
+
 pub enum PamItem {
     Service(String),
     User(String),
@@ -53,9 +71,12 @@ pub enum PamItem {
     Authtok(String),
     OldAuthtok(String),
     Conv(pam_conv),
-    FailDelay(unsafe extern "C" fn(retval: std::os::raw::c_int, usec_delay: std::os::raw::c_uint, *const std::os::raw::c_void)),
+    FailDelay(unsafe extern "C" fn(
+            retval: std::os::raw::c_int, 
+            usec_delay: std::os::raw::c_uint, 
+            *const std::os::raw::c_void)),
     XDisplay(String),
-    XAuthData(pam_xauth_data), // Wow, I've got absolutely no idea what fills this one
+    XAuthData(pam_xauth_data),
     AuthtokType(String),
 }
 
@@ -87,7 +108,6 @@ pub fn safe_pam_end(handle: *mut pam_handle_t, status: PamReturn) -> PamReturn {
 }
 
 pub fn safe_pam_set_item(handle: *mut pam_handle_t, i: PamItem) -> PamReturn {
-    
     let res = unsafe {
         // God I hate this match statement
         // NOTE: The strings might cause seg faults. Need to test this
@@ -160,5 +180,67 @@ pub fn safe_pam_set_item(handle: *mut pam_handle_t, i: PamItem) -> PamReturn {
         pam_set_item(handle, item_type as i32, item)
     };
     PamReturn::from_u32(res as u32).unwrap() 
+}
+
+pub fn safe_pam_get_item(handle: *mut pam_handle_t, item_type: PamItemType) -> 
+    (PamReturn, PamItem) {
+    // I turned them into enums because I thought life would be all nice,
+    // now we get these massive match statements
+    let it_type = item_type as u32 as i32;
+    unsafe {
+        use std::os::raw::c_void;
+        let i: *mut *const c_void = ptr::null_mut();
+        let res = pam_get_item(handle, it_type, i);
+        let item = match PamItemType::from_i32(it_type).unwrap() {
+            PamItemType::Service => PamItem::Service(
+                CStr::from_ptr(
+                    transmute::<*const c_void, *const std::os::raw::c_char>
+                    (*i)).to_str().unwrap().to_owned()),
+            PamItemType::User => PamItem::User(
+                CStr::from_ptr(
+                    transmute::<*const c_void, *const std::os::raw::c_char>
+                    (*i)).to_str().unwrap().to_owned()),
+            PamItemType::UserPrompt => PamItem::UserPrompt(
+                CStr::from_ptr(
+                    transmute::<*const c_void, *const std::os::raw::c_char>
+                    (*i)).to_str().unwrap().to_owned()),
+            PamItemType::TTY => PamItem::TTY(
+                CStr::from_ptr(
+                    transmute::<*const c_void, *const std::os::raw::c_char>
+                    (*i)).to_str().unwrap().to_owned()),
+            PamItemType::RUser => PamItem::RUser(
+                CStr::from_ptr(
+                    transmute::<*const c_void, *const std::os::raw::c_char>
+                    (*i)).to_str().unwrap().to_owned()),
+            PamItemType::RHost => PamItem::RHost(
+                CStr::from_ptr(
+                    transmute::<*const c_void, *const std::os::raw::c_char>
+                    (*i)).to_str().unwrap().to_owned()),
+            PamItemType::Authtok => PamItem::Authtok(
+                CStr::from_ptr(
+                    transmute::<*const c_void, *const std::os::raw::c_char>
+                    (*i)).to_str().unwrap().to_owned()),
+            PamItemType::OldAuthtok => PamItem::OldAuthtok(
+                CStr::from_ptr(
+                    transmute::<*const c_void, *const std::os::raw::c_char>
+                    (*i)).to_str().unwrap().to_owned()),
+            PamItemType::Conv => PamItem::Conv(
+                *transmute::<*const c_void, *const pam_conv>(*i)),
+            PamItemType::FailDelay => PamItem::FailDelay(
+                transmute::<*const c_void, 
+                    unsafe extern "C" fn(i32, u32, *const c_void)>(*i)),
+            PamItemType::XDisplay => PamItem::XDisplay(
+                CStr::from_ptr(
+                    transmute::<*const c_void, *const std::os::raw::c_char>
+                    (*i)).to_str().unwrap().to_owned()),
+            PamItemType::XAuthData => PamItem::XAuthData(
+                *transmute::<*const c_void, *const pam_xauth_data>(*i)),
+            PamItemType::AuthtokType => PamItem::AuthtokType(
+                CStr::from_ptr(
+                    transmute::<*const c_void, *const std::os::raw::c_char>
+                    (*i)).to_str().unwrap().to_owned()),
+        };
+        (PamReturn::from_u32(res as u32).unwrap(), item)
+    }
 }
 
