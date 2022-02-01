@@ -80,6 +80,13 @@ pub enum PamItem {
     AuthtokType(String),
 }
 
+#[repr(u32)]
+#[derive(Primitive)]
+pub enum PamFlags {
+    PamSilent = PAM_SILENT,
+    PamDisallowNullAuthtok = PAM_DISALLOW_NULL_AUTHTOK,
+}
+
 pub fn safe_pam_start(service_name: String, user: String, conv: pam_conv) 
     -> (PamReturn, *mut pam_handle_t) {
 
@@ -241,6 +248,77 @@ pub fn safe_pam_get_item(handle: *mut pam_handle_t, item_type: PamItemType) ->
                     (*i)).to_str().unwrap().to_owned()),
         };
         (PamReturn::from_u32(res as u32).unwrap(), item)
+    }
+}
+
+pub fn safe_pam_strerror(handle: *mut pam_handle_t, errnum: i32) -> String {
+    unsafe {
+        let res: *const std::os::raw::c_char = pam_strerror(handle, errnum);
+        CStr::from_ptr(res).to_str().unwrap().to_owned().clone()
+    }
+}
+
+pub fn safe_pam_fail_delay(handle: *mut pam_handle_t, usec: u32) -> PamReturn {
+    let res = unsafe {
+        pam_fail_delay(handle, usec)
+    };
+    PamReturn::from_i32(res).unwrap()
+}
+
+pub fn safe_pam_authenticate(handle: *mut pam_handle_t, flags: i32) ->  PamReturn {
+    PamReturn::from_i32(unsafe {pam_authenticate(handle, flags)}).unwrap()
+}
+
+pub fn safe_pam_setcred(handle: *mut pam_handle_t, flags: i32) -> PamReturn {
+    PamReturn::from_i32(unsafe {pam_setcred(handle, flags)}).unwrap()
+}
+
+pub fn safe_pam_acct_mgmt(handle: *mut pam_handle_t, flags: i32) -> PamReturn {
+    PamReturn::from_i32(unsafe {pam_acct_mgmt(handle, flags)}).unwrap()
+}
+
+pub fn safe_pam_chauthtok(handle: *mut pam_handle_t, flags: i32) -> PamReturn {
+    PamReturn::from_i32(unsafe {pam_chauthtok(handle , flags)}).unwrap()
+}
+
+pub fn safe_pam_open_session(handle: *mut pam_handle_t, flags: i32) -> PamReturn {
+    PamReturn::from_i32(unsafe {pam_open_session(handle, flags)}).unwrap()
+}
+
+pub fn safe_pam_close_session(handle: *mut pam_handle_t, flags: i32) -> PamReturn {
+    PamReturn::from_i32(unsafe {pam_close_session(handle, flags)}).unwrap()
+}
+
+pub fn safe_pam_putenv(handle: *mut pam_handle_t, name: String) -> PamReturn {
+    PamReturn::from_i32(unsafe {
+        let n = CString::new(name).expect("CString::new error");
+        pam_putenv(handle, n.as_ptr())
+    }).unwrap()
+}
+
+pub fn safe_pam_getenv(handle: *mut pam_handle_t, name: String) -> Option<String> {
+    let n = CString::new(name).expect("CString::new error");
+    unsafe {
+        let res = pam_getenv(handle, n.as_ptr());
+        if res.is_null() {
+            None
+        } else {
+            Some(CStr::from_ptr(res).to_str().unwrap().to_owned())
+        }
+    }
+}
+
+pub fn safe_pam_getenvlist(handle: *mut pam_handle_t) -> Option<Vec<String>> {
+    unsafe {
+        let res = pam_getenvlist(handle);
+        if res.is_null() {
+            None
+        } else {
+            let mut list: Vec<String> = Vec::new();
+            
+
+            None
+        }
     }
 }
 
