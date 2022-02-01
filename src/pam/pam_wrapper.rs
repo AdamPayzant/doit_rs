@@ -117,48 +117,55 @@ pub fn safe_pam_end(handle: *mut pam_handle_t, status: PamReturn) -> PamReturn {
 pub fn safe_pam_set_item(handle: *mut pam_handle_t, i: PamItem) -> PamReturn {
     let res = unsafe {
         // God I hate this match statement
-        // NOTE: The strings might cause seg faults. Need to test this
         let (item_type, item): (u32, *mut std::os::raw::c_void) = match i {
             PamItem::Service(service) => 
-                (PAM_SERVICE, 
-                 transmute::<*const std::os::raw::c_char,*mut std::os::raw::c_void>(
-                     CString::new(service).expect("CString::new error").as_ptr())
-            ),
+                (PAM_SERVICE, {
+                    let val = CString::new(service).expect("CString::new error");
+                    transmute::<*const std::os::raw::c_char,*mut std::os::raw::c_void>(
+                        val.as_ptr())
+                }),
             PamItem::User(user) => 
-                (PAM_USER, 
-                 transmute::<*const std::os::raw::c_char,*mut std::os::raw::c_void>(
-                     CString::new(user).expect("CString::new error").as_ptr())
-                 ),
+                (PAM_USER, {
+                    let val = CString::new(user).expect("CString::new error");
+                    transmute::<*const std::os::raw::c_char,*mut std::os::raw::c_void>(
+                        val.as_ptr())
+                }),
             PamItem::UserPrompt(prompt) => 
-                (PAM_USER_PROMPT,
-                 transmute::<*const std::os::raw::c_char,*mut std::os::raw::c_void>(
-                     CString::new(prompt).expect("CString::new error").as_ptr())
-                ),
+                (PAM_USER_PROMPT, {
+                    let val = CString::new(prompt).expect("CString::new error");
+                    transmute::<*const std::os::raw::c_char,*mut std::os::raw::c_void>(
+                        val.as_ptr())
+                }),
             PamItem::TTY(tty) => 
-                (PAM_TTY,
-                 transmute::<*const std::os::raw::c_char,*mut std::os::raw::c_void>(
-                     CString::new(tty).expect("CString::new error").as_ptr())
-                ),
+                (PAM_TTY, {
+                    let val = CString::new(tty).expect("CString::new error");
+                    transmute::<*const std::os::raw::c_char,*mut std::os::raw::c_void>(
+                        val.as_ptr())
+                }),
             PamItem::RUser(user) => 
-                (PAM_RUSER,
-                 transmute::<*const std::os::raw::c_char,*mut std::os::raw::c_void>(
-                     CString::new(user).expect("CString::new error").as_ptr())
-                ), 
+                (PAM_RUSER, {
+                    let val = CString::new(user).expect("CString::new error");
+                    transmute::<*const std::os::raw::c_char,*mut std::os::raw::c_void>(
+                        val.as_ptr())
+                }), 
             PamItem::RHost(host) => 
-                (PAM_RHOST,
-                 transmute::<*const std::os::raw::c_char,*mut std::os::raw::c_void>(
-                     CString::new(host).expect("CString::new error").as_ptr())
-                ),
+                (PAM_RHOST, {
+                    let val = CString::new(host).expect("CString::new error");
+                    transmute::<*const std::os::raw::c_char,*mut std::os::raw::c_void>(
+                        val.as_ptr())
+                }),
             PamItem::Authtok(authtok) => 
-                (PAM_AUTHTOK,
-                 transmute::<*const std::os::raw::c_char,*mut std::os::raw::c_void>(
-                     CString::new(authtok).expect("CString::new error").as_ptr())
-                ),
+                (PAM_AUTHTOK, {
+                    let val = CString::new(authtok).expect("CString::new error");
+                    transmute::<*const std::os::raw::c_char,*mut std::os::raw::c_void>(
+                        val.as_ptr())
+                }),
             PamItem::OldAuthtok(authtok) => 
-                (PAM_OLDAUTHTOK,
-                 transmute::<*const std::os::raw::c_char,*mut std::os::raw::c_void>(
-                     CString::new(authtok).expect("CString::new error").as_ptr())
-                ),
+                (PAM_OLDAUTHTOK, {
+                    let val = CString::new(authtok).expect("CString::new error");
+                    transmute::<*const std::os::raw::c_char,*mut std::os::raw::c_void>(
+                        val.as_ptr())
+                }),
             PamItem::Conv(conv) => 
                 (PAM_CONV,
                  transmute::<*const pam_conv,*mut std::os::raw::c_void>(&conv)
@@ -170,19 +177,21 @@ pub fn safe_pam_set_item(handle: *mut pam_handle_t, i: PamItem) -> PamReturn {
                     *mut std::os::raw::c_void>(delay)
                 ),
             PamItem::XDisplay(display) => 
-                (PAM_XDISPLAY,
-                 transmute::<*const std::os::raw::c_char,*mut std::os::raw::c_void>(
-                     CString::new(display).expect("CString::new error").as_ptr())
-                ),
+                (PAM_XDISPLAY, {
+                    let val = CString::new(display).expect("CString::new error");
+                    transmute::<*const std::os::raw::c_char,*mut std::os::raw::c_void>(
+                        val.as_ptr())
+                }),
             PamItem::XAuthData(data) => 
                 (PAM_XAUTHDATA,
                  transmute::<*const pam_xauth_data, *mut std::os::raw::c_void>(&data)
                  ),
             PamItem::AuthtokType(typ) => 
-                (PAM_AUTHTOK_TYPE,
-                 transmute::<*const std::os::raw::c_char,*mut std::os::raw::c_void>(
-                     CString::new(typ).expect("CString::new error").as_ptr())
-                ),
+                (PAM_AUTHTOK_TYPE, {
+                    let val = CString::new(typ).expect("CString::new error");
+                    transmute::<*const std::os::raw::c_char,*mut std::os::raw::c_void>(
+                        val.as_ptr())
+                }),
         };
         pam_set_item(handle, item_type as i32, item)
     };
@@ -303,21 +312,25 @@ pub fn safe_pam_getenv(handle: *mut pam_handle_t, name: String) -> Option<String
         if res.is_null() {
             None
         } else {
-            Some(CStr::from_ptr(res).to_str().unwrap().to_owned())
+            Some(CStr::from_ptr(res).to_str().unwrap().clone().to_owned())
         }
     }
 }
 
 pub fn safe_pam_getenvlist(handle: *mut pam_handle_t) -> Option<Vec<String>> {
     unsafe {
-        let res = pam_getenvlist(handle);
+        let mut res = pam_getenvlist(handle);
         if res.is_null() {
             None
         } else {
             let mut list: Vec<String> = Vec::new();
-            
-
-            None
+            // NOTE: getenvlist gives ownership to us, so we'll need to free it.
+            // I believe Rust should do this automagically, but this needs to be verified
+            while !res.is_null() {
+                list.push(CStr::from_ptr(*res).to_str().unwrap().to_owned());
+                res = res.add(8);
+            }
+            Some(list)
         }
     }
 }
