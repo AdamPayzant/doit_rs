@@ -7,7 +7,8 @@
 
 use num_traits::FromPrimitive;
 use std::{ffi::{CString, CStr}, ptr, mem::transmute};
-use crate::pam::pam_bindings::*;
+pub use crate::pam_mod::pam_bindings::{pam_conv, pam_message, pam_response};
+use crate::pam_mod::pam_bindings::*;
 use enum_primitive_derive::Primitive;
 
 #[repr(u32)]
@@ -42,6 +43,7 @@ pub enum PamReturn {
     SystemErr = PAM_SYSTEM_ERR,
     BadItem = PAM_BAD_ITEM,
 }
+
 
 #[repr(u32)]
 #[derive(Primitive)]

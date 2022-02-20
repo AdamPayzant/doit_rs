@@ -1,0 +1,7 @@
+name: doit
+author: Adam Payzant <PayzantEdwardIV@gmail.com>
+about: A simple privledge escalation tool
+args:
+  - command:
+      short: c
+      long: command
