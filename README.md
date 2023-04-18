@@ -29,9 +29,9 @@ There are absolutely no security guarantees!
 
 ## Remaining Goals
 
-[ ] PAM support - This currently only supports shadow authentication. 
+- [ ] PAM support - This currently only supports shadow authentication. 
 It would be nice to add PAM support like I originally intended.
-[ ] Unit tests
-[ ] Actual release mode - We do a few awkward things like having the `doit.conf` file in the project directory where non-root users can read/write to it.
+- [ ] Unit tests
+- [ ] Actual release mode - We do a few awkward things like having the `doit.conf` file in the project directory where non-root users can read/write to it.
 This is bad and should be fixed.
 
