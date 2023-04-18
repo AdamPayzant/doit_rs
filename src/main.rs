@@ -5,47 +5,104 @@
  */
 
 use std;
-use std::{error::Error, io::Write, env, str::FromStr, ptr::null_mut};
-use whoami;
+use std::ffi::CStr;
+use std::fs::File;
+use std::io::{BufRead, Write};
+use std::os::unix::process::CommandExt;
+use libc;
 use rpassword;
+use std::process::Command;
 
-mod pam_mod;
-use pam_mod::pam;
+mod shadow;
 
 //const DOIT_LIST: &str = "/etc/doit.conf";
-const SERVICE_NAME: String = String::from("doit");
+const DOIT_LIST: &str = "doit.conf";
 
-unsafe extern "C" fn conv (
-    num_msg: std::os::raw::c_int,
-    msg: *mut *const pam::pam_message,
-    resp: *mut *mut pam::pam_response,
-    appdata_ptr: *mut std::os::raw::c_void,
-) -> std::os::raw::c_int {
-    1
+#[derive(Debug)]
+#[allow(dead_code)]
+enum UserError {
+    NullEntry,
+    StringError,
+    UnknownError,
 }
 
-// Verifies user with PAM
-fn verify_password(user:String, pwd: String) -> Result<bool, Box<dyn Error>> {
-    let handle = pam::safe_pam_start(SERVICE_NAME, user, pam::pam_conv {
-        conv: Some(conv), 
-        appdata_ptr: null_mut(), 
-    });
-    Ok(true)
+fn get_username() -> Result<String, UserError> {
+    let uid = unsafe { libc::getuid() };
+    match unsafe {
+        let ptr = libc::getpwuid(uid);
+        if ptr.is_null() {
+            return Err(UserError::NullEntry);
+        }
+        let passwd = *ptr;
+        CStr::from_ptr(passwd.pw_name).to_str()
+    } {
+        Ok(res) => Ok(res.to_owned()),
+        Err(_) => Err(UserError::StringError),
+    }
+}
+
+fn shadow_verify_password(user:&str, pass: &str) -> bool {
+    let hash = match shadow::get_shadow_hash(user) {
+        Ok(res) => res,
+        Err(err) => {
+            match err {
+                shadow::ShadowError::CStrError(_) => println!("CString failure"),
+                _ => println!("Failure: {:?}", err),
+            };
+            return false
+        }
+    };
+
+    shadow::verify_user(hash.as_str(), pass)
+}
+
+fn permit_user(user:&str) -> bool {
+    let lines = std::io::BufReader::new(match File::open(DOIT_LIST) {
+        Ok(res) => res,
+        Err(err) => {
+            println!("{:?}", err);
+            return false;
+        }
+    }).lines();
+    for line in lines {
+        if line.is_ok() {
+            if line.unwrap().as_str() == user {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-
-    let user = whoami::username();
-    // God I hate how long this line is
+    let user = match get_username() {
+        Ok(res) => res,
+        Err(err) => {
+            println!("Error {:?} while getting user", err);
+            return;
+        }
+    };
+    if !permit_user(user.as_str()) && user != "root" {
+        println!("User {} is not authorized", user);
+        return;
+    }
     print!("doit ({}@{}) password: ", user, whoami::hostname());
     std::io::stdout().flush().unwrap_or(());
     let pass = rpassword::read_password().unwrap();
-
-    match verify_password(user, pass) {
-        Ok(true) => println!("Authentication success"),
-        Ok(false) => println!("Could not authenticate"),
-        _ => println!("Something went wrong"),
+    let res = shadow_verify_password(user.as_str(), pass.as_str());
+    if !res {
+        println!("Invalid password");
+        return;
     }
+
+    // Okay, we've authroized the user, time to invoke
+    if std::env::args().len() < 2 {
+        println!("No arguments provided");
+        return;
+    }
+    let name = std::env::args().collect::<Vec<String>>()[1].clone();
+    let args:Vec<String> = std::env::args().skip(2).collect();
+    let err = Command::new(name).args(&args).exec();
+    println!("{:?}", err);
 }
 
