@@ -1,7 +1,9 @@
 [package]
 name = "doit"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
+description = "A simple privledge escalation program"
+repository = "https://github.com/AdamPayzant/doit_rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

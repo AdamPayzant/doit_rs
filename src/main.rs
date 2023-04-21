@@ -14,6 +14,7 @@ use rpassword;
 use std::process::Command;
 
 mod shadow;
+mod pam;
 
 //const DOIT_LIST: &str = "/etc/doit.conf";
 const DOIT_LIST: &str = "doit.conf";
@@ -56,22 +57,36 @@ fn shadow_verify_password(user:&str, pass: &str) -> bool {
     shadow::verify_user(hash.as_str(), pass)
 }
 
-fn permit_user(user:&str) -> bool {
+#[derive(PartialEq)]
+enum UserEntry {
+    ShadowEntry,
+    PamEntry,
+    NotFound,
+}
+
+fn check_user_entry(user:&str) -> UserEntry {
     let lines = std::io::BufReader::new(match File::open(DOIT_LIST) {
         Ok(res) => res,
         Err(err) => {
             println!("{:?}", err);
-            return false;
+            return UserEntry::NotFound;
         }
     }).lines();
     for line in lines {
         if line.is_ok() {
-            if line.unwrap().as_str() == user {
-                return true;
+            let l = line.unwrap();
+            let split: Vec<&str> = l.split_whitespace().collect();
+            
+            if split[0] == user {
+                if split.len() > 1 && split[1].eq_ignore_ascii_case("PAM") {
+                    return UserEntry::PamEntry;
+                } else {
+                    return UserEntry::ShadowEntry;
+                }
             }
         }
     }
-    false
+    UserEntry::NotFound
 }
 
 fn main() {
@@ -82,16 +97,26 @@ fn main() {
             return;
         }
     };
-    if !permit_user(user.as_str()) && user != "root" {
+    let entry = check_user_entry(user.as_str());
+    if entry == UserEntry::NotFound {
         println!("User {} is not authorized", user);
         return;
     }
-    print!("doit ({}@{}) password: ", user, whoami::hostname());
-    std::io::stdout().flush().unwrap_or(());
-    let pass = rpassword::read_password().unwrap();
-    let res = shadow_verify_password(user.as_str(), pass.as_str());
+    
+    let res: bool;
+    if entry == UserEntry::ShadowEntry {
+        // Verify via shadow
+        print!("doit ({}@{}) password: ", user, whoami::hostname());
+        std::io::stdout().flush().unwrap_or(());
+        let pass = rpassword::read_password().unwrap();
+        res = shadow_verify_password(user.as_str(), pass.as_str());
+    } else {
+        // Verify via PAM
+        res = pam::pam_verify_user(user.as_str());
+    }
+
     if !res {
-        println!("Invalid password");
+        println!("User not authenticated");
         return;
     }
 
